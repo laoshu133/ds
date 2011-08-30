@@ -1,0 +1,14 @@
+	var ieVer = (function(){
+		// UPDATE: Now using Live NodeList idea from @jdalto
+		var v = 3, div = doc.createElement('div'), els = div.getElementsByTagName('i');
+		while(div.innerHTML = '<!--[if gt IE ' + (++v) + ']><i></i><![endif]-->', els[0]);
+		v = v > 4 ? v : undefined;
+		div = null;
+		return function(ver){
+			return isNaN(ver) ? v : v === ver;
+		}
+	})();
+	ds.extend({
+		ieVer : ieVer,
+		isIE : ieVer() !== undefined
+	});
