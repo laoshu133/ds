@@ -827,14 +827,13 @@ www.laoshu133.com
 		animate : support.cssTransition ? function(el, fxOps, duration, callback, ease){
 			var 
 			self = this,
-			durStr = 'TransitionDuration',
-			easeStr = 'TransitionTimingFunction',
+			durStr = trainsitionPri + 'TransitionDuration',
+			easeStr = trainsitionPri + 'TransitionTimingFunction',
 			type = 'TransitionEnd',
 			fixType = trainsitionPri + type,
-			tranOps = {},
-			oldDur = this.css(el, trainsitionPri + durStr),
+			oldDur = this.css(el, durStr),
 			fxDone = function(e){
-				self.css(el, trainsitionPri + durStr, oldDur);
+				self.css(el, durStr, oldDur);
 				(callback || self.noop).call(el, e);
 				self.unbind(el, fixType, fxDone)
 				.unbind(el, type.toLowerCase(), fxDone)
@@ -842,11 +841,10 @@ www.laoshu133.com
 			};
 			fxOps = fxOps || {};
 			duration = isFinite(duration) ? duration + 'ms' : (duration || '400ms');
-			tranOps[trainsitionPri + durStr] = duration;
-			tranOps[trainsitionPri + easeStr] = ease;
+			this.data(el, '@ds_fx_ops', fxOps);
 			this.bind(el, fixType, fxDone).bind(el, type.toLowerCase(), fxDone)
-			.data(el, '@ds_fx_ops', fxOps);
-			return this.css(el, tranOps).css(el, fxOps);
+			.css(el, durStr, duration).css(el, easeStr, ease || 'cubic-bezier(0.25, 0.1, 0.25, 1)');
+			return this.css(el, fxOps);
 		} : function(el, fxOps, duration, callback, ease){
 			if(this.isEmptyObject(fxOps)) return this;
 			var k, tmp, self = this,
