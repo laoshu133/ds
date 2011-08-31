@@ -7,7 +7,10 @@ www.laoshu133.com
 2011.08.16 --重整结构
 2011.08.27 --完成添加mouseenter，mouseleave自定义事件
 2011.08.28 --完善animate模块
-2011.08.30 --重写BOM模块，实测IE,FF,CHROME
+2011.08.30 --重写BOM模块，实测IE,FF,CHROME,
+2011.08.31 --小部分更新, support, string
+2011.08.31 --重新了css模块，原CSS在opera下有点问题
+2011.08.31 --添加class模块
 */
 ;(function(window, undefined){
 	var 
@@ -25,7 +28,12 @@ www.laoshu133.com
 		support = {
 			deleteProp : true,
 			props : {
-				"className" : true
+				className : true,
+				checked : true,
+				frameBorder : true,
+				innerHTML : true,
+				scrollLeft : true,
+				scrollTop : true
 			},
 			opacity : /^0.55$/.test(a.style.opacity),
 			cssFloat : a.style.cssFloat === 'left',
@@ -85,8 +93,11 @@ www.laoshu133.com
 	//type, object, string
 	var
 	rword = /[^, \|]+/g,
+	rtrim = /^\s*|\s*$/g,
 	rfirstWord = /^\w/,
-	upperFirst = function(str){ return String(str).replace(rfirstWord, function(a){ return a.toUpperCase()});},
+	rcamel = /-[a-z]/g,
+	//字符串去重 http://www.cnblogs.com/rubylouvre/archive/2011/01/27/1946397.html
+	rnotRepeat = /(^|\s)(\S+)(?=\s(?:\S+\s)*\2(?:\s|$))/g,
 	class2type = {
 		'[object HTMLDocument]' : 'document',
 		'[object HTMLCollection]' : 'nodelist',
@@ -117,16 +128,22 @@ www.laoshu133.com
 			for(var undf in obj) return false;
 			return true;
 		},
-		isArray : function(obj){
+		isArray : Array.isArray || function(obj){
 			return getType(obj, 'array');
 		},
 		isFunction : function(obj){
 			return getType(obj, 'function');
 		},
 		trim : function(str){
-			return str.replace(/^\s*/, '').replace(/\s*$/, '');
+			return str.replace(rtrim, '');
 		},
-		upperFirst : upperFirst
+		upperFirst : function(str){	return String(str).replace(rfirstWord, function(a){ return a.toUpperCase()});},
+		camelCase : function(str){
+			return str.replace(rcamel, function(s){ return s.charAt(1).toUpperCase()});
+		},
+		distinctCase : function(str){
+			return str.replace(rnotRepeat, '');
+		}
 	});
 	
 	//Data
@@ -348,17 +365,74 @@ www.laoshu133.com
 	//elems
 	var 
 	docEl = doc.documentElement,
-	$d = function(id){return "string" == typeof id ? doc.getElementById(id) : id;},
+	$d = function(id, context){return "string" == typeof id ? (context || doc).getElementById(id) : id;};
+	ds.extend({
+		$d : $d,
+		$D : function(tag, context){ return (context || doc).getElementsByTagName(tag);},
+		nodeName : function(el){ return (el!==null ? el.nodeName : String(el)).toUpperCase();},
+		createEl : function(name, ops){
+			var el = doc.createElement(name);
+			this.attr(el, ops);
+			return el;
+		},
+		removeEl : function(el){
+			this.removeData(ds.$D('*', el)).removeData(el);
+			el.parentNode && el.parentNode.removeChild(el);
+			return this;
+		}
+	});
 	//attr, prop
 	propFix = {
-		"class" : "className"
+		"class" : "className",
+		"html" : "innerHTML"
 	},
 	attrFix = {
 		"class" : "className",
 		"for" : "htmlFor"
-	},
+	};
+	ds.extend({
+		prop : function(el, name, val){
+			var isGet = val === undefined;
+			name = propFix[name] || name;
+			if(typeof name === 'object'){
+				for(var k in name){
+					this.prop(el, k, name[k]);
+				}
+			}
+			else{
+				if(isGet){
+					return el[name];
+				}
+				else{
+					el[name] = val;
+				}
+			}
+			return this;
+		},
+		attr : function(el, name, val){
+			var isGet = val === undefined;
+			if(typeof name === 'object'){
+				for(var k in name){
+					this.attr(el, k, name[k]);
+				}
+			}
+			else{
+				name = attrFix[name] || name;
+				if(name in support.props || !('setAttribute' in el)){
+					return this.prop(el, name, val);
+				}
+				if(isGet){
+					return el.getAttribute(name);
+				}
+				else{
+					el.setAttribute(name, '' + val);
+				}
+			}
+			return this;
+		}
+	});
+	
 	//css, style
-	rcssName = /-(\w)/g,
 	rcssDigit = /fontWeight|lineHeight|opacity|zIndex|zoom/i,
 	ralpha = /alpha\([^)]*\)/i,
 	ropacity = /opacity=([^)]*)/i,
@@ -386,11 +460,12 @@ www.laoshu133.com
 		}
 		return hooks;
 	})(),
-	_currCss = function(el, name){
-		if(name in cssHooks && cssHooks[name].get){
-			return cssHooks[name].get(el);
-		}
-		return el.currentStyle ? el.currentStyle[name] : doc.defaultView.getComputedStyle(el, null)[name];
+	_currCss = doc.defaultView && window.getComputedStyle ? function(el, name){
+		var ret, view = el.ownerDocument.defaultView;
+		ret = view ? view.getComputedStyle(el, null)[name] : undefined;
+		return ret !== '' ? ret : el.style[name];
+	} : function(el, name){
+		return el.currentStyle[name];
 	},
 	//offset, WH, display
 	cssWidth = ['Left', 'Right'], cssHeight = ['Top', 'Bottom'],
@@ -418,89 +493,69 @@ www.laoshu133.com
 		return {width:w, height:h};
 	};
 	ds.extend({
-		//elems
-		$d : $d,
-		$D : function(tag, context){ return (context || doc).getElementsByTagName(tag);},
-		nodeName : function(el){ return (el!==null ? el.nodeName : String(el)).toUpperCase();},
-		createEl : function(name, ops){
-			var el = doc.createElement(name);
-			this.attr(el, ops);
-			return el;
-		},
-		removeEl : function(el){
-			this.removeData(ds.$D('*', el)).removeData(el);
-			el.parentNode && el.parentNode.removeChild(el);
-			return this;
-		},
-		//prop
-		prop : function(el, name, val){
-			var isGet = val === undefined;
-			name = propFix[name] || name;
-			if(typeof name === 'object'){
-				for(var k in name){
-					this.prop(el, k, name[k]);
-				}
-			}
-			else{
-				if(isGet){
-					return el[name];
-				}
-				else{
-					el[name] = val;
-				}
-			}
-			return this;
-		},
-		//attr
-		attr : function(el, name, val){
-			var isGet = val === undefined;
-			if(typeof name === 'object'){
-				for(var k in name){
-					this.attr(el, k, name[k]);
-				}
-			}
-			else{
-				name = attrFix[name] || name;
-				if(name in support.props || !('setAttribute' in el)){
-					return this.prop(el, name, val);
-				}
-				if(isGet){
-					return el.getAttribute(name);
-				}
-				else{
-					el.setAttribute(name, "" + val);
-				}
-			}
-			return this;
-		},
-		//css, style
 		css : function(el, name, val){
-			var isSet = val !== undefined;
 			if(typeof name === 'object'){
 				for(var k in name){
 					this.css(el, k, name[k]);
 				}
+				return this;
+			}
+			var ret, hooks = cssHooks[name];
+			name = this.camelCase(cssFix[name] || name);
+			if(val !== undefined){
+				if(typeof val === 'number' && !rcssDigit.test(name)){
+					val += 'px';
+				}
+				if(!hooks || !hooks.set || (val = hooks.set(el, val)) !== undefined){
+					el.style[name] = val;
+				}
 			}
 			else{
-				name = cssFix[name] || name;
-				name = name.replace(rcssName, function(all, letter){ return letter.toUpperCase();});
-				if(isSet){
-					if(typeof val === 'number' && !rcssDigit.test(name)){
-						val = (parseFloat(val) || 0) + 'px';
-					}
-					if(name in cssHooks && cssHooks[name].set){
-						cssHooks[name].set(el, val);
-					}
-					else{
-						el.style[name] = val;
-					}
+				if(hooks && 'get' in hooks && (ret = hooks.get(el, name)) !== undefined){
+					return ret;
 				}
-				else{
-					return _currCss(el, name);
-				}
+				return _currCss(el, name);
 			}
 			return this;
 		},
+		addClass : function(el, names){
+			if(names){
+				var i = 0,
+				cNames = [],
+				cName = this.trim(el.className);
+				names.replace(rword, function(name){
+					cNames[i++] = name;
+				});
+				if(cName.length){
+					cNames.unshift(cName);
+				}
+				el.className = this.trim(this.distinctCase(cNames.join(' ')));
+			}
+			return this;
+		},
+		hasClass : function(el, name){
+			var cName = ' ' + el.className + ' ';
+			return cName.indexOf(name) > -1;
+		},
+		removeClass : function(el, name){
+			var cName = '';
+			if(name){
+				cName = (' ' + el.className + ' ').replace(' ' + name + ' ', ' ');
+			}
+			el.className = this.trim(cName);
+			return this;
+		},
+		toggleClass : function(el, names){
+			var ds = this,
+			clObj = {className : el.className};
+			names.replace(rword, function(name){
+				ds[ds.hasClass(clObj, name) ? 'removeClass' : 'addClass'](clObj, name);
+			});
+			el.className = clObj.className;
+			return this;
+		}
+	});
+	ds.extend({
 		//innerHTML
 		html : function(el, val){
 			if(val === undefined){
