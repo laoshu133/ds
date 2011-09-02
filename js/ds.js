@@ -11,6 +11,7 @@ www.laoshu133.com
 2011.08.31 --小部分更新, support, string
 2011.08.31 --重新了css模块，原CSS在opera下有点问题
 2011.08.31 --添加class模块
+2011.09.02 --完善event模块，支持多事件绑定
 */
 ;(function(window, undefined){
 	var 
@@ -286,6 +287,11 @@ www.laoshu133.com
 			bubbles : true
 		},
 		bind : function(el, type, fn){
+			if(typeof type === 'object'){
+				return this.each(type, function(type, fn){
+					ds.bind(el, type, fn);
+				});
+			}
 			var event = this.event,
 			special = event.special[type],
 			cache = this.data(el, '@ds_events') || this.data(el, '@ds_events', {}),
@@ -302,11 +308,15 @@ www.laoshu133.com
 			return this;
 		},
 		unbind : function(el, type, fn){
-			var i,
-			data, callbacks,
+			if(typeof type === 'object'){
+				return this.each(type, function(type, fn){
+					ds.unbind(el, type,fn);
+				});
+			}
+			var i, data, callbacks,
 			event = this.event,
 			special = event.special[type],
-			cache = this.data(el, '@ds_events');
+			cache = this.data(el, '@ds_events') || {};
 			if(!type){
 				return this.each(cache, function(type){
 					ds.unbind(el, type);
@@ -358,6 +368,7 @@ www.laoshu133.com
 			if(parent && bubble && event.bubbles){
 				this.trigger(parent, type, args);
 			}
+			return this;
 		}
 	});
 	
@@ -523,9 +534,7 @@ www.laoshu133.com
 				var i = 0,
 				cNames = [],
 				cName = this.trim(el.className);
-				names.replace(rword, function(name){
-					cNames[i++] = name;
-				});
+				names.replace(rword, function(name){ cNames[i++] = name; });
 				if(cName.length){
 					cNames.unshift(cName);
 				}
