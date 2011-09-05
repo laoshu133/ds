@@ -13,6 +13,7 @@ www.laoshu133.com
 2011.08.31 --添加class模块
 2011.09.02 --完善event模块，支持多事件绑定
 2011.09.04 --添加queue模块，完善loader模块，支持串行加载脚本
+2011.09.05 --修正DOM部分代码
 */
 ;(function(window, undefined){
 	var 
@@ -28,6 +29,7 @@ www.laoshu133.com
 		div.innerHTML = '<a href="#" style="float:left;opacity:.55;">a</a>';
 		a = div.getElementsByTagName('a')[0];
 		support = {
+			boundingRect : !!div.getBoundingClientRect,
 			deleteProp : true,
 			props : {
 				className : true,
@@ -50,7 +52,7 @@ www.laoshu133.com
 	
 	//初始化ds
 	ds = window.ds = {
-		version : 0.3,
+		ds : 0.4,
 		noop : function(){},
 		each : function(obj, fn){
 			var k,len, i = 0;
@@ -375,9 +377,8 @@ www.laoshu133.com
 	
 	//DOM
 	//elems
-	var 
-	docEl = doc.documentElement,
-	$d = function(id, context){return "string" == typeof id ? (context || doc).getElementById(id) : id;};
+	var docEl = doc.documentElement,
+	$d = function(id, context){return "string" == typeof id ? (context || doc).getElementById(id) : id};
 	ds.extend({
 		$d : $d,
 		$D : function(tag, context){ return (context || doc).getElementsByTagName(tag);},
@@ -394,7 +395,7 @@ www.laoshu133.com
 		}
 	});
 	//attr, prop
-	propFix = {
+	var propFix = {
 		"class" : "className",
 		"html" : "innerHTML"
 	},
@@ -445,6 +446,7 @@ www.laoshu133.com
 	});
 	
 	//css, style
+	var 
 	rcssDigit = /fontWeight|lineHeight|opacity|zIndex|zoom/i,
 	ralpha = /alpha\([^)]*\)/i,
 	ropacity = /opacity=([^)]*)/i,
@@ -492,17 +494,6 @@ www.laoshu133.com
 			cssDisplay[nodeName] = display;
 		}
 		return cssDisplay[nodeName];
-	},
-	getWH = function(el, leftPad){
-		var w = el.offsetWidth, h = el.offsetHeight;
-		if(leftPad){
-			for(var i=0; i<cssWidth.length; i++){
-				w -= parseFloat(css(el, 'padding' + cssWidth[i]));
-				h -= parseFloat(css(el, 'padding' + cssHeight[i]));
-			}
-			
-		}
-		return {width:w, height:h};
 	};
 	ds.extend({
 		css : function(el, name, val){
@@ -563,6 +554,9 @@ www.laoshu133.com
 			return this;
 		}
 	});
+	
+	//display, WH, offset
+	var rroot = /body|html/i;
 	ds.extend({
 		//innerHTML
 		html : function(el, val){
@@ -598,6 +592,9 @@ www.laoshu133.com
 			return window.pageYOffset || docEl.scrollTop || doc.body.scrollTop;
 		},
 		scrollTop : function(el, val){
+			if(el === doc){
+				return this.pageScrollTop();
+			}
 			if(!isNaN(val)){
 				el.scrollTop = val;
 			}
@@ -606,48 +603,59 @@ www.laoshu133.com
 			}
 		},
 		getPosition : function(el){
-			var 
-			leftPad = _currCss(el, 'marginLeft'), topPad = _currCss(el, 'marginTop'),
-			left = el.offsetLeft, top = el.offsetTop;
-			leftPad = parseFloat(leftPad) || 0;
-			topPad = parseFloat(topPad) || 0;
-			return {left : left-leftPad, top : top-topPad};
+			var leftPad = parseFloat(_currCss(el, 'marginLeft')) || 0,
+			topPad = parseFloat(_currCss(el, 'marginTop')) || 0;
+			return {left : el.offsetLeft - leftPad, top : el.offsetTop - topPad};
 		},
-		getWH : getWH,
-		getOuterWH : function(el, padMargin){
-			var wh = getWH(el), w = wh.width, h = wh.height;
-			for(var i=0;i<cssWidth.length; i++){
-				w += padMargin ? parseFloat(css(el, 'margin' + cssWidth[i])) : 0;
-				h += padMargin ? parseFloat(css(el, 'margin' + cssHeight[i])) : 0;
+		getWH : function(el, leftPad){
+			var w = el.offsetWidth, h = el.offsetHeight;
+			if(leftPad){
+				for(var i=0,len=cssWidth.length; i<len; i++){
+					w -= parseFloat(_currCss(el, 'padding' + cssWidth[i]));
+					h -= parseFloat(_currCss(el, 'padding' + cssHeight[i]));
+				}	
 			}
 			return {width:w, height:h};
 		},
+		getOuterWH : function(el, padMargin){
+			var wh = this.getWH(el);
+			if(padMargin){
+				for(var i=0,len=cssWidth.length; i<len; i++){
+					wh.width += parseFloat(_currCss(el, 'margin', cssWidth[i])) || 0;
+					wh.height += parseFloat(_currCss(el, 'margin', cssHeight[i])) || 0;
+				}
+			}
+			return wh;
+		},
 		getOffset : function(el){
-			if(el.getBoundingClientRect){
+			if(support.boundingRect){
 				return el.getBoundingClientRect();
 			}
 			var left = el.offsetLeft, top = el.offsetTop;
-			while(el = el.offsetParent && /(?:body|html)/i.test(el.nodeName)){
+			while((el = el.offsetParent) && !rroot.test(el.nodeName)){
 				left += el.offsetLeft;
 				top += el.offsetTop;
 			}
-			return { left:left, top:top};
+			return {left:left, top:top};
 		},
 		getPageSize : function(){
-			var docEl = doc.documentElement, docBd = doc.body, Max = Math.max,
-			wStr = ['scrollWidth', 'offsetWidth', 'clientWidth'], hStr = ['scrollHeight', 'offsetHeight', 'clientHeight'], w , h;
-			w = Max(Max(docEl[wStr[0]], docBd[wStr[0]]), Max(docEl[wStr[1]], docBd[wStr[1]]), Max(docEl[wStr[2]], docBd[wStr[2]]));
-			h = Max(Max(docEl[hStr[0]], docBd[hStr[0]]), Max(docEl[hStr[1]], docBd[hStr[1]]), Max(docEl[hStr[2]], docBd[hStr[2]]));
-			return {height:h, width:w};
+			var Max = Math.max,
+			body = doc.body,
+			wStr = ['scrollWidth', 'offsetWidth', 'clientWidth'],
+			hStr = ['scrollHeight', 'offsetHeight', 'clientHeight'];
+			return {
+				width : Max(Max(docEl[wStr[0]], body[wStr[0]]), Max(docEl[wStr[1]], body[wStr[1]]), Max(docEl[wStr[2]], body[wStr[2]])),
+				height : Max(Max(docEl[hStr[0]], body[hStr[0]]), Max(docEl[hStr[1]], body[hStr[1]]), Max(docEl[hStr[2]], body[hStr[2]]))
+			};
 		},
 		getWindowSize : function(){
-			var docEl = doc.documentElement, docBd = doc.body, Max = Math.max,
-			wStr = 'Width', hStr = 'Height', priStr = ['inner', 'client'], supportInner = !!window.innerWidth, w, h;
-			w = supportInner ? window[priStr[0] + wStr] : Max(docEl[priStr[1] + wStr], docBd[priStr[1] + wStr]);
-			h = supportInner ? window[priStr[0] + hStr] : Max(docEl[priStr[1] + hStr], docBd[priStr[1] + hStr]);
-			return {height:h, width:w};
+			var body = doc.body,
+			supportInner = !!window.innerWidth;
+			return {
+				width : supportInner ? window.innerWidth : Math.max(docEl.clientWidth, body.clientWidth),
+				height : supportInner ? window.innerHeight : Math.max(docEl.clientHeight, body.clientHeight)
+			};
 		}
-		
 	});
 	
 	//BOM
