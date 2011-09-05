@@ -14,6 +14,7 @@ www.laoshu133.com
 2011.09.02 --完善event模块，支持多事件绑定
 2011.09.04 --添加queue模块，完善loader模块，支持串行加载脚本
 2011.09.05 --修正type, 使其支持XHR，修正DOM部分代码
+2011.09.05 --完善loadScript，添加async属性，理论上支持并行加载 http://www.laoshu133.com/test/queue.html
 */
 ;(function(window, undefined){
 	var 
@@ -834,27 +835,32 @@ www.laoshu133.com
 			type = w3c ? 'load' : 'readystatechange',
 			rstatus = /loaded|complete|undefined/,
 			head = doc.head || this.$D('head')[0],
-			len = urls.length, i = 0,
+			len = urls.length,
+			i = 0, loadedCount = 0,
 			el, elems = [],
-			propCallback = function(i){
-				return function(nextLoad){
-					el = elems[i];
-					ds.bind(el, type, function(){
-						if(w3c || rstatus.test(el.readyState)){
-							nextLoad(); //此时脚本并不一定执行完毕，不能移除，不能卸载，延后卸载
-						}
-					});
-					head.appendChild(el);
+			resCallback = function(){
+				loadedCount++;
+				if(loadedCount >= urls.length){
+					callback.call(this);
+					return ds.clearData(elems);
 				}
 			};
 			for(; i<len; i++){
-				elems[i] = this.createEl('script', {type:'text/javascript', src:urls[i]});
-				this.queue(head, name, propCallback(i));
+				elems[i] = this.createEl('script', {type:'text/javascript', charset : 'utf-8', async : true});
+				this.bind(elems[i], 'error', function(){
+					resCallback();
+					ds.removeEl(this);
+				})
+				.bind(elems[i], type, function(){
+					if(w3c || rstatus.test(this.readyState)){
+						resCallback();
+					}
+				});
+				elems[i].src = urls[i];
+				//elems[i].src = !ds.debug ? urls[i] : urls[i] + '?_t=' + new Date().getTime();
+				head.appendChild(elems[i]);
 			}
-			return this.queue(head, name, function(){
-				callback.call(this);
-				ds.clearData(elems);
-			}).dequeue(head, name);
+			return this;
 		},
 		loadStyle : function(url, fn){
 			var el = createEl('style', {type:'text/css'}), head = $D('head')[0];
