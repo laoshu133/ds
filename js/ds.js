@@ -12,7 +12,7 @@ www.laoshu133.com
 2011.09.02 --完善event模块，支持多事件绑定
 2011.09.04 --添加queue模块，完善loader模块，支持串行加载脚本
 2011.09.05 --修正type, 使其支持XHR，修正DOM部分代码
-2011.09.05 --完善loadScript，添加async属性，理论上支持并行加载 http://www.laoshu133.com/test/queue.html
+2011.09.05 --完善loadScript，添加async属性，理论上支持并行加载 http://www.laoshu133.com/ds/loadScript.html
 */
 ;(function(window, undefined){
 	var 
