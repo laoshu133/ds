@@ -12,6 +12,7 @@ www.laoshu133.com
 2011.08.31 --重新了css模块，原CSS在opera下有点问题
 2011.08.31 --添加class模块
 2011.09.02 --完善event模块，支持多事件绑定
+2011.09.04 --添加queue模块，完善loader模块，支持串行加载脚本
 */
 ;(function(window, undefined){
 	var 
@@ -543,8 +544,7 @@ www.laoshu133.com
 			return this;
 		},
 		hasClass : function(el, name){
-			var cName = ' ' + el.className + ' ';
-			return cName.indexOf(name) > -1;
+			return (' ' + el.className + ' ').indexOf(name) > -1;
 		},
 		removeClass : function(el, name){
 			var cName = '';
@@ -555,8 +555,7 @@ www.laoshu133.com
 			return this;
 		},
 		toggleClass : function(el, names){
-			var ds = this,
-			clObj = {className : el.className};
+			var clObj = {className : el.className};
 			names.replace(rword, function(name){
 				ds[ds.hasClass(clObj, name) ? 'removeClass' : 'addClass'](clObj, name);
 			});
@@ -755,7 +754,7 @@ www.laoshu133.com
 				url : url,
 				type : 'GET',
 				callback : callback,
-				error : function(status){ ds.debug('XHR ERROR - ' + status);},
+				error : function(status){ ds.log('XHR ERROR - ' + status);},
 				cache : cache
 			});
 		},
@@ -765,30 +764,82 @@ www.laoshu133.com
 				type : 'POST',
 				data : data,
 				callback : callback,
-				error : function(status){ ds.debug('XHR ERROR - ' + status);}
+				error : function(status){ ds.log('XHR ERROR - ' + status);}
 			});
+		}
+	});
+	
+	//queue
+	ds.extend({
+		queue : function(el, name, fn){
+			if(!fn){
+				fn = name;
+				name = 'fx';
+			}
+			name = '@ds_queue_' + name;
+			if(this.isArray(fn)){
+				this.data(el, name, fn);
+			}
+			else{
+				var data = this.data(el, name) || this.data(el, name, []);
+				data.push(fn);
+			}
+			return this;
+		},
+		dequeue : function(el, name){
+			if(!name){
+				name = 'fx';
+			}
+			var fn,
+			data = this.data(el, '@ds_queue_' + name) || [];
+			if(data.length > 0){
+				fn = data.shift();
+				this.isFunction(fn) && fn.call(el, function(){
+					ds.dequeue(el, name);
+				});
+			}
+			return this;
+		},
+		clearQueue : function(el, name){
+			name = '@ds_queue_' + (name || 'fx');
+			ds.data(el, name, []);
+			return this;
 		}
 	});
 	
 	//loader 
 	var basePath = 'js';
 	ds.extend({
-		loadScript : function(url, fn){
+		loadScript : function(url/*,url1,...,urln, callback*/){
 			var 
-			head = doc.head || this.$D('head')[0],
+			name = 'loadScript',
+			args = arguments,
+			callback = args[args.length - 1],
+			urls = this.isArray(url) ? url : Array.prototype.slice.call(args, 0, -1),
 			type = w3c ? 'load' : 'readystatechange',
 			rstatus = /loaded|complete|undefined/,
-			el = this.createEl('script', {'type':'text/javascript', 'src':url});
-			this.bind(el, type, function(){
-				var status = el.readyState;
-				if(w3c || rstatus.test(status)){
-					ds.isFunction(fn) && fn.call(el);
-					ds.removeEl(el);
+			head = doc.head || this.$D('head')[0],
+			len = urls.length, i = 0,
+			el, elems = [],
+			propCallback = function(i){
+				return function(nextLoad){
+					el = elems[i];
+					ds.bind(el, type, function(){
+						if(w3c || rstatus.test(el.readyState)){
+							nextLoad(); //此时脚本并不一定执行完毕，不能移除，不能卸载，延后卸载
+						}
+					});
+					head.appendChild(el);
 				}
-			});
-			head.appendChild(el);
-			//head.insertBefore(el, head.firstChild);
-			return this;
+			};
+			for(; i<len; i++){
+				elems[i] = this.createEl('script', {type:'text/javascript', src:urls[i]});
+				this.queue(head, name, propCallback(i));
+			}
+			return this.queue(head, name, function(){
+				callback.call(this);
+				ds.clearData(elems);
+			}).dequeue(head, name);
 		},
 		loadStyle : function(url, fn){
 			var el = createEl('style', {type:'text/css'}), head = $D('head')[0];
