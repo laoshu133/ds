@@ -8,9 +8,7 @@ www.laoshu133.com
 2011.08.27 --完成添加mouseenter，mouseleave自定义事件
 2011.08.28 --完善animate模块
 2011.08.30 --重写BOM模块，实测IE,FF,CHROME,
-2011.08.31 --小部分更新, support, string
-2011.08.31 --重新了css模块，原CSS在opera下有点问题
-2011.08.31 --添加class模块
+2011.08.31 --重新了css模块，原CSS在opera下有点问题，添加class模块
 2011.09.02 --完善event模块，支持多事件绑定
 2011.09.04 --添加queue模块，完善loader模块，支持串行加载脚本
 2011.09.05 --修正type, 使其支持XHR，修正DOM部分代码
