@@ -13,7 +13,7 @@ www.laoshu133.com
 2011.08.31 --添加class模块
 2011.09.02 --完善event模块，支持多事件绑定
 2011.09.04 --添加queue模块，完善loader模块，支持串行加载脚本
-2011.09.05 --修正DOM部分代码
+2011.09.05 --修正type, 使其支持XHR，修正DOM部分代码
 */
 ;(function(window, undefined){
 	var 
@@ -91,7 +91,8 @@ www.laoshu133.com
 		extend : function(overObj){
 			return this.mix(this, overObj, true);
 		},
-		support : support
+		support : support,
+		debug : true
 	};
 	
 	//type, object, string
@@ -118,6 +119,9 @@ www.laoshu133.com
 			}
 			else if(obj.nodeType === 9){
 				_type = 'document';
+			}
+			else if('open' in obj && 'send' in obj){
+				_type = 'xmlhttprequest';
 			}
 			else{
 				_type = toString.call(obj).slice(8, -1);
@@ -677,23 +681,7 @@ www.laoshu133.com
 	})('Chrome|Firefox|IE|Opera|Safari'));
 	
 	//AJAX
-	var getXhr = function(){
-		var fns = [
-			function () {return new XMLHttpRequest();},
-			function () {return new ActiveXObject('Msxml2.XMLHTTP');},
-			function () {return new ActiveXObject('Microsoft.XMLHTTP');}
-		];
-		for(var i = 0, len = 3; i<len; i++){
-			try{
-				getXhr = fns[i];
-				getXhr();
-				break;
-			}
-			catch(_){}
-		}
-		if(i >= len){ /*throw 'XHR 创建失败';*/ return null;}
-		return getXhr();
-	},
+	var 
 	_ajaxDefOps = {
 		url : '',
 		type : 'GET',
@@ -704,7 +692,24 @@ www.laoshu133.com
 		asyn : true
 	};
 	ds.extend({
-		getXhr : getXhr,
+		getXhr : function(){
+			var 
+			xhr = null,
+			xhrs = [
+				function () {return new XMLHttpRequest();},
+				function () {return new ActiveXObject('Msxml2.XMLHTTP');},
+				function () {return new ActiveXObject('Microsoft.XMLHTTP');}
+			];
+			for(var i=0,len=xhrs.length; i<len; i++){
+				try{
+					xhr = xhrs[i]();
+					this.getXhr = xhrs[i];
+					break;
+				}
+				catch(_){}
+			}
+			return xhr;
+		},
 		buildData : function(data){
 			var str = '', dataArr = [];
 			if(typeof data === 'object'){
@@ -729,7 +734,7 @@ www.laoshu133.com
 		},
 		ajax : function(ops){
 			var 
-			xhr = getXhr(),
+			xhr = this.getXhr(),
 			data = ops.data,
 			hasData = !!data,
 			isPost;
@@ -938,7 +943,7 @@ www.laoshu133.com
 	//animate
 	var 
 	fxEase = function(t){return (t*=2)<1?.5*t*t:.5*(1-(--t)*(t-2));},
-	cssPris = ['webkit', 'Moz', 'O', ''],
+	cssPris = ['webkit', 'Moz', 'O', 'ms', ''],
 	trainsitionPri = (function(){
 		for(var i=0, len=cssPris.length; i<len; i++){
 			if((cssPris[i] + 'TransitionDuration') in docEl.style){
@@ -1101,6 +1106,7 @@ www.laoshu133.com
 	ds.extend({
 		log : function(/*info1, ...infoN, inDiv*/){
 			var args = arguments;
+			if(!ds.debug) return this;
 			if(!window.console || args[args.length-1] == '@div'){
 				var div = this.$d('ds_debug'), p = this.createEl('p'), str = '', sStr = ',&nbsp;';
 				if(!div){
@@ -1121,6 +1127,5 @@ www.laoshu133.com
 			}
 		}
 	});
-
 	
 })(window);
