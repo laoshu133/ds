@@ -592,15 +592,17 @@ www.laoshu133.com
 			return window.pageYOffset || docEl.scrollTop || doc.body.scrollTop;
 		},
 		scrollTop : function(el, val){
-			if(el === doc){
-				return this.pageScrollTop();
+			var isDoc = el === doc || el === window;
+			if(!isFinite(val)){
+				return isDoc ? this.pageScrollTop() : el.scrollTop;
 			}
-			if(!isNaN(val)){
-				el.scrollTop = val;
+			if(isDoc){
+				window.scrollTo(window.scrollX || 0, val);
 			}
 			else{
-				return el.scrollTop;
+				el.scrollTop = val;
 			}
+			return this;
 		},
 		getPosition : function(el){
 			var leftPad = parseFloat(_currCss(el, 'marginLeft')) || 0,
