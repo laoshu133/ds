@@ -822,47 +822,45 @@ www.laoshu133.com
 	});
 	
 	//loader 
-	var basePath = 'js';
+	var 
+	rloaded = /loaded|complete|undefined/;
 	ds.extend({
 		loadScript : function(url/*,url1,...,urln, callback*/){
 			var 
-			name = 'loadScript',
 			args = arguments,
 			callback = args[args.length - 1],
 			urls = this.isArray(url) ? url : Array.prototype.slice.call(args, 0, -1),
 			type = w3c ? 'load' : 'readystatechange',
-			rstatus = /loaded|complete|undefined/,
 			head = doc.head || this.$D('head')[0],
 			len = urls.length,
 			i = 0, loadedCount = 0,
 			el, elems = [],
-			resCallback = function(){
-				loadedCount++;
+			handler = function(e){
+				if(w3c || rloaded.test(this.readyState)){
+					loadedCount++;
+				}
 				if(loadedCount >= urls.length){
 					callback.call(this);
-					return ds.clearData(elems);
+					ds.clearData(elems);
+				}
+				if(e && e.type === 'error'){
+					ds.removeEl(this);
 				}
 			};
 			for(; i<len; i++){
-				elems[i] = this.createEl('script', {type:'text/javascript', charset : 'utf-8', async : true});
-				this.bind(elems[i], 'error', function(){
-					resCallback();
-					ds.removeEl(this);
-				})
-				.bind(elems[i], type, function(){
-					if(w3c || rstatus.test(this.readyState)){
-						resCallback();
-					}
-				});
-				elems[i].src = urls[i];
-				//elems[i].src = !ds.debug ? urls[i] : urls[i] + '?_t=' + new Date().getTime();
-				head.appendChild(elems[i]);
+				el = elems[i] = this.createEl('script', {type:'text/javascript', charset : 'utf-8', async : true});
+				this.bind(el, 'error', handler).bind(el, type, handler);
+				el.src = urls[i];
+				//el.src = !ds.debug ? urls[i] : urls[i] + '?_t=' + new Date().getTime();
+				head.appendChild(el);
 			}
 			return this;
 		},
-		loadStyle : function(url, fn){
-			var el = createEl('style', {type:'text/css'}), head = $D('head')[0];
-			ds.get(url, function(str){
+		loadStyle : function(url, callback){
+			var 
+			head = doc.head || this.$D('head')[0],
+			el = this.createEl('style', {type:'text/css'});
+			return this.get(url, function(str){
 				if(el.styleSheet){
 					el.styleSheet.cssText = str;
 				}
@@ -870,12 +868,8 @@ www.laoshu133.com
 					el.innerHTML = str;
 				}
 				head.appendChild(el);
-				typeof fn === 'function' && fn.call(el);
+				(callback || ds.noop).call(el);
 			}, true);
-			return el;
-		},
-		use : function(name, fn){
-			return this.loadScript(basePath + '/' + name + '.js', fn);
 		}
 	});
 	
