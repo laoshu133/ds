@@ -1,11 +1,18 @@
 ﻿## ds.js
-## author : 米
-## description : 小小的一个静态类库
-## create : 2011.04.18
-## update : 2011.08.30
-## homepgae : www.laoshu133.com
-## 2011.08.08 --添加 animate模块
-## 2011.08.16 --重整结构
-## 2011.08.27 --完成添加mouseenter，mouseleave自定义事件
-## 2011.08.28 --完善animate模块
-## 2011.08.30 --重写BOM模块，实测IE,FF,CHROME
+author : laoshu133
+create : 2011.05.20
+update : 2011.08.22
+www.laoshu133.com
+2011.08.08 --添加 animate模块
+2011.08.16 --重整结构
+2011.08.27 --完成添加mouseenter，mouseleave自定义事件
+2011.08.28 --完善animate模块
+2011.08.30 --重写BOM模块，实测IE,FF,CHROME,
+2011.08.31 --重新了css模块，原CSS在opera下有点问题，添加class模块
+2011.09.02 --完善event模块，支持多事件绑定
+2011.09.04 --添加queue模块，完善loader模块，支持串行加载脚本
+2011.09.05 --修正type, 使其支持XHR，修正DOM部分代码
+2011.09.05 --完善loadScript，添加async属性，理论上支持并行加载 http://www.laoshu133.com/ds/loadScript.html
+2011.10.30 --重写AJAX部分
+2011.12.16 --重写attr,prop; 修正async属性用prop操作，非attr
+2011.12.16 --修正loadScript并行加载不能按顺序执行和重复加载的BUG
